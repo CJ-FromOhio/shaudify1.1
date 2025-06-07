@@ -11,6 +11,9 @@ import com.hezix.shaudifymain.mapper.likedSong.LikedSongReadMapper;
 import com.hezix.shaudifymain.repository.LikedSongRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,16 +42,9 @@ public class LikedSongService {
                 .build();
 
         likedSongRepository.save(likedSong);
-        return mapEntityToRead(likedSong);
-
+        return likedSongReadMapper.toDto(likedSong);
     }
-    @Transactional(readOnly = true)
-    public ReadLikedSongDto findLikedSongByUserIdAndSongId(Long songId, UserDetails userDetails) {
-        User userEntityByUsername = userService.findUserEntityByUsername(userDetails.getUsername());
-        LikedSong likedSong = likedSongRepository.findLikedSongByUserIdAndSongId(userEntityByUsername.getId(), songId)
-                .orElse(null);
-        return mapEntityToRead(likedSong);
-    }
+    @Cacheable(value = "LikedSongService::findLikedSongBooleanByUserIdAndSongId", key = "#songId + '-' + #userDetails.username")
     @Transactional(readOnly = true)
     public Boolean findLikedSongBooleanByUserIdAndSongId(Long songId, UserDetails userDetails) {
         User user = userService.findUserEntityByUsername(userDetails.getUsername());
@@ -57,40 +53,31 @@ public class LikedSongService {
                 .isPresent();
         return liked;
     }
-
+    @Cacheable(value = "LikedSongService::findLikedSongByUserId", key = "#userId")
     @Transactional(readOnly = true)
     public ReadLikedSongDto findLikedSongByUserId(Long userId) {
-        return mapEntityToRead(likedSongRepository
+        return likedSongReadMapper.toDto(likedSongRepository
                 .findLikedSongByUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Error finding liked song")));
     }
+    @Cacheable(value = "LikedSongService::findLikedSongBySongId", key = "#songId")
     @Transactional(readOnly = true)
     public ReadLikedSongDto findLikedSongById(Long id) {
-        return mapEntityToRead(likedSongRepository
+        return likedSongReadMapper.toDto(likedSongRepository
                 .findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("LikedSong with id " + id + " not found")));
     }
     @Transactional(readOnly = true)
     public List<ReadLikedSongDto> findAllLikedSongs() {
-        return mapListEntityToListRead(likedSongRepository.findAll());
+        return likedSongReadMapper.toDtoList(likedSongRepository.findAll());
     }
+    @Caching(evict = {
+            @CacheEvict(value = "LikedSongService::findLikedSongByUserId", key = "#result.userId"),
+            @CacheEvict(value = "LikedSongService::findLikedSongBySongId", key = "#result.songId"),
+    })
     @Transactional()
     public ReadLikedSongDto deleteLikedSong(Long id) {
-        return mapEntityToRead(likedSongRepository.deleteLikedSongById(id));
+        return likedSongReadMapper.toDto(likedSongRepository.deleteLikedSongById(id));
     }
 
-    //mappers
-    public LikedSong mapReadToEntity(ReadLikedSongDto likedSongDto) {
-        return likedSongReadMapper.toEntity(likedSongDto);
-    }
-
-    public ReadLikedSongDto mapEntityToRead (LikedSong likedSong) {
-        return likedSongReadMapper.toDto(likedSong);
-    }
-    public List<ReadLikedSongDto> mapListEntityToListRead(List<LikedSong> likedSongList) {
-        return likedSongReadMapper.toDtoList(likedSongList);
-    }
-    public List<LikedSong> mapListReadToListEntity(List<ReadLikedSongDto> likedSongListDto) {
-        return likedSongReadMapper.toEntityList(likedSongListDto);
-    }
 }

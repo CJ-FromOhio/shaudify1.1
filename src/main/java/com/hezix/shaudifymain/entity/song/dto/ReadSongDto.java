@@ -7,13 +7,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.redis.core.RedisHash;
 
+import java.io.Serializable;
 import java.time.Instant;
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReadSongDto {
+public class ReadSongDto implements Serializable {
 
     private Long id;
 

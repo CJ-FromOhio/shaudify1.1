@@ -5,7 +5,9 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.hezix.shaudifymain.entity.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.redis.core.RedisHash;
 
+import java.io.Serializable;
 import java.time.Instant;
 
 @EqualsAndHashCode(callSuper = false)
@@ -15,7 +17,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @Entity
 @Table(name = "songs")
-public class Song {
+public class Song  implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

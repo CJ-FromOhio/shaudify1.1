@@ -9,11 +9,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class CreateUserDto {
+public class CreateUserDto  implements Serializable {
     @Size(min = 4, max = 32, message = "поле username должно быть от 4 до 32 символов")
     @NotBlank(message = "поле username не должно быть пустым")
     private String username;

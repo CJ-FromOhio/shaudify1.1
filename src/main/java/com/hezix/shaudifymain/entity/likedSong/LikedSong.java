@@ -9,13 +9,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.redis.core.RedisHash;
+
+import java.io.Serializable;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity(name = "likedSongs")
-public class LikedSong {
+public class LikedSong  implements Serializable {
     @Id
     @GeneratedValue
     private Long id;

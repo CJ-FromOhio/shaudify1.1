@@ -9,11 +9,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class CreateSongDto {
+public class CreateSongDto implements Serializable {
 
     private Long id;
     @NotBlank(message = "поле title не должно быть пустым")

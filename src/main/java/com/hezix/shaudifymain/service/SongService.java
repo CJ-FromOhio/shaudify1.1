@@ -9,6 +9,10 @@ import com.hezix.shaudifymain.mapper.song.SongCreateMapper;
 import com.hezix.shaudifymain.mapper.song.SongReadMapper;
 import com.hezix.shaudifymain.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,17 +30,18 @@ public class SongService {
 
     @Transactional()
     public ReadSongDto save(CreateSongDto createSongDto, UserDetails userDetails) {
-        Song song = mapCreateToSong(createSongDto);
+        Song song = songCreateMapper.toEntity(createSongDto);
         song.setCreatedAt(Instant.now());
-        var user = userService.findUserEntityByUsername(userDetails.getUsername());
+        var user = userService.findUserEntityByUsernameWithCreatedSongs(userDetails.getUsername());
         user.getCreatedSong().add(song);
         song.setCreator(user);
         songRepository.save(song);
-        return mapSongToRead(song);
+        return songReadMapper.toDto(song);
     }
+    @Cacheable(value = "SongService::findSongById", key = "#id")
     @Transactional(readOnly = true)
     public ReadSongDto findSongById(Long id) {
-        return mapSongToRead(songRepository.findById(id)
+        return songReadMapper.toDto(songRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Song with id " + id + " not found")));
     }
     @Transactional(readOnly = true)
@@ -46,6 +51,7 @@ public class SongService {
                 .map(this::findSongById)
                 .toList();
     }
+    @Cacheable(value = "SongService::findSongEntityById", key = "#id")
     @Transactional(readOnly = true)
     public Song findSongEntityById(Long id) {
         return songRepository.findById(id)
@@ -54,32 +60,13 @@ public class SongService {
 
     @Transactional(readOnly = true)
     public List<ReadSongDto> findAllSongs() {
-        return mapListSongToListRead(songRepository.findAll());
+        return songReadMapper.toDtoList(songRepository.findAll());
     }
     @Transactional()
     public ReadSongDto deleteSongById(Long id) {
         var song = findSongById(id);
-        songRepository.delete(mapReadToSong(song));
+        songRepository.delete(songReadMapper.toEntity(song));
         return song;
     }
 
-    //mappers
-    public ReadSongDto mapSongToRead(Song song) {
-        return songReadMapper.toDto(song);
-    }
-    public CreateSongDto mapSongToCreate(Song song) {
-        return songCreateMapper.toDto(song);
-    }
-    public Song mapReadToSong(ReadSongDto song) {
-        return songReadMapper.toEntity(song);
-    }
-    public Song mapCreateToSong(CreateSongDto song) {
-        return songCreateMapper.toEntity(song);
-    }
-    public List<ReadSongDto> mapListSongToListRead(List<Song> songList) {
-        return songReadMapper.toDtoList(songList);
-    }
-    public List<Song> mapListReadToListSong(List<ReadSongDto> songList) {
-        return songReadMapper.toEntityList(songList);
-    }
 }

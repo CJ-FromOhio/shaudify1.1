@@ -7,9 +7,11 @@ import com.hezix.shaudifymain.entity.song.Song;
 import jakarta.persistence.*;
 import lombok.*;
 
+import org.springframework.data.redis.core.RedisHash;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -22,7 +24,7 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "users")
-public class User{
+public class User implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

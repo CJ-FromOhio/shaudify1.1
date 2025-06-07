@@ -1,6 +1,5 @@
 package com.hezix.shaudifymain.service;
 
-import com.hezix.shaudifymain.entity.user.Role;
 import com.hezix.shaudifymain.entity.user.User;
 import com.hezix.shaudifymain.entity.user.dto.CreateUserDto;
 import com.hezix.shaudifymain.entity.user.dto.ReadUserDto;
@@ -10,9 +9,11 @@ import com.hezix.shaudifymain.mapper.user.UserCreateMapper;
 import com.hezix.shaudifymain.mapper.user.UserReadMapper;
 import com.hezix.shaudifymain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,26 +35,36 @@ public class UserService {
             throw new PasswordAndPasswordConfirmationNotEquals("Password and password confirmation not equals");
         }
         createUserDto.setPassword(bcryptPasswordEncoder.encode(createUserDto.getPassword()));
-        User user = mapCreateToEntity(createUserDto);
+        User user = userCreateMapper.toEntity(createUserDto);
         user.setCreatedAt(Instant.now());
         User created_user = userRepository.save(user);
-        return mapUserToRead(created_user);
+        return userReadMapper.toDto(created_user);
     }
+    @Cacheable(value = "UserService::findUserById", key = "#id")
     @Transactional(readOnly = true)
     public ReadUserDto findUserById(Long id) {
-        return mapUserToRead(userRepository.findById(id)
+        return userReadMapper.toDto(userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("User with id " + id + " not found")));
     }
     @Transactional(readOnly = true)
+    @Cacheable(value = "UserService::findUserByUsername", key = "#username")
     public ReadUserDto findUserByUsername(String username) {
-        return mapUserToRead(userRepository.findByUsername(username)
+        return userReadMapper.toDto(userRepository.findByUsername(username)
                 .orElseThrow(() -> new EntityNotFoundException("User with username " + username + " not found")));
     }
+    @Cacheable(value = "UserService::findUserEntityByUsername", key = "#username")
     @Transactional(readOnly = true)
     public User findUserEntityByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new EntityNotFoundException("User Entity with username " + username + " not found"));
     }
+    @Cacheable(value = "UserService::findUserEntityByUsernameWithCreatedSongs", key = "#username")
+    @Transactional(readOnly = true)
+    public User findUserEntityByUsernameWithCreatedSongs(String username) {
+        return userRepository.findByUsernameWithCreatedSongs(username)
+                .orElseThrow(() -> new EntityNotFoundException("User Entity with username " + username + " not found"));
+    }
+    @Cacheable(value = "UserService::findUserDetailsByUsername", key = "#username")
     @Transactional(readOnly = true)
     public UserDetails findUserDetailsByUsername(String username) {
         return userRepository.findByUsername(username)
@@ -65,40 +76,23 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("UserDetails with username " + username + " not found"));
     }
     @Transactional(readOnly = true)
-    public User findUserEntityById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("User Entity with id " + id + " not found"));
-    }
-    @Transactional(readOnly = true)
     public List<ReadUserDto> findAllUsers() {
-        return mapListUserToListRead(userRepository.findAll());
+        return userReadMapper.toDtoList(userRepository.findAll());
     }
+    @Caching(evict = {
+            @CacheEvict(value = "UserService::findUserById", key = "#result.id"),
+            @CacheEvict(value = "UserService::findUserByUsername", key = "#result.username"),
+            @CacheEvict(value = "UserService::findUserEntityByUsername", key = "#result.username"),
+            @CacheEvict(value = "UserService::findUserDetailsByUsername", key = "#result.username"),
+            @CacheEvict(value = "UserService::findUserEntityByUsernameWithCreatedSongs", key = "#result.username")
+    })
     @Transactional()
     public ReadUserDto deleteUserById(Long id) {
         var user = findUserById(id);
-        userRepository.delete(mapReadToUser(user));
+        userRepository.delete(userReadMapper.toEntity(user));
         return user;
     }
 
-    //mappers
-    public ReadUserDto mapUserToRead(User user) {
-        return userReadMapper.toDto(user);
-    }
-    public CreateUserDto mapUserToCreate(User user) {
-        return userCreateMapper.toDto(user);
-    }
-    public User mapReadToUser(ReadUserDto user) {
-        return userReadMapper.toEntity(user);
-    }
-    public User mapCreateToEntity(CreateUserDto createUserDto) {
-        return userCreateMapper.toEntity(createUserDto);
-    }
-    public List<ReadUserDto> mapListUserToListRead(List<User> userList) {
-        return userReadMapper.toDtoList(userList);
-    }
-    public List<User> mapListReadToListUser(List<ReadUserDto> userList) {
-        return userReadMapper.toEntityList(userList);
-    }
 
 
 }
